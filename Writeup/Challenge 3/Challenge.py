@@ -77,7 +77,7 @@ def find_length(serial_port, prefix):
                         break
 
 def get_CRC(serial_port, symbol):
-    prefix = "a50464C4147"
+    prefix = "a504464c4147"
 
     console = Console()
     console.log("[green]Start finding CRC", log_locals=False)
@@ -95,7 +95,8 @@ def get_CRC(serial_port, symbol):
         time.sleep(1)
         serial_port.flush()
 
-        for i in range(len(symbol)):
+        for passcode in itertools.combinations_with_replacement(symbol, 2):
+            passcode
             while True:
                 result = ser.readline()
                 if(len(result) > 0):
@@ -104,8 +105,8 @@ def get_CRC(serial_port, symbol):
                 if("over serial" in result.decode()):
                     break
 
-            console.log(f"Testing symbol : {prefix + symbol[i] + '000'}")
-            serial_port.write(serial_port.write((prefix + symbol[i] + "000").encode("ascii")))
+            console.log(f"Testing symbol : {prefix + passcode}")
+            serial_port.write(serial_port.write((prefix + passcode).encode("ascii")))
             serial_port.flush()
             start = time.perf_counter_ns()
 
@@ -139,8 +140,8 @@ def get_CRC(serial_port, symbol):
         console.log(f"Symbol found : {prefix}", log_locals=False);
         print_graph(current_symbol)
 
-ser = serial.Serial('/dev/tty.usbmodem143201', 115200, timeout=1)
-CRC = get_CRC(ser, KEYS)
+ser = serial.Serial('COM3', 115200, timeout=1)
+#CRC = get_CRC(ser, KEYS)
 #header = get_header(ser, KEYS)
 #length = find_length(ser, "a50464c4147")
 
@@ -154,5 +155,5 @@ while True:
             break
 
     #ser.write(ser.write(("a5" + "f"*16).encode("ascii")))
-    ser.write(("a50464c4147000").encode("ascii"))
+    ser.write(("a504464c4147da").encode("ascii"))
     ser.flush()

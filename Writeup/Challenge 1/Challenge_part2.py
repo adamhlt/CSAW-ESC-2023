@@ -1,57 +1,41 @@
-import serial
-import matplotlib.pyplot as plt
-import numpy
+import hashlib
+import itertools
+import string
 import time
 
-KEYS="1234567890"
+def generate_keypass_hash_list(count=1024):
+    hashs = {}
+    s = time.time()
+    for keypass in itertools.combinations_with_replacement("0123456789", 10):
+        if len(hashs)>=count: break
+        keypass_str     = str(''.join(keypass))
+        hash_hex        = hashlib.sha1(keypass_str.encode('ascii', 'replace')).hexdigest()[:10]
+        hashs[hash_hex] = keypass_str
+    print(f"Generate {count} pincodes and hashes in {(time.time()-s)*1000:0.2f} ms !")
+    return hashs
 
-def print_graph(counts):
-    fig, ax = plt.subplots()
+def try_collide(hashs):
+    c = 0
+    temp_speed = time.time()
+    s = time.time()
+    for i in range(30):
+        for passcode in itertools.combinations_with_replacement(string.ascii_lowercase, i):
+            passcode_str = "Barry" + str(''.join(passcode))
+            hash_hex = hashlib.sha1(passcode_str.encode('ascii', 'replace')).hexdigest()[:10]
+            if hash_hex in hashs:
+                print(f'\033[0GCollide ! hash={hash_hex} pin_code={hashs[hash_hex]} username={passcode_str} it took {(time.time()-s):0.2f} s !')
+                return
+            
+            if c==100000:
+                print(f"\033[0G{100000/(time.time()-temp_speed):0.2f} it/s    ",end='',flush=True)
+                temp_speed=time.time()
+                c=0
 
-    ax.bar(KEYS, counts, label=KEYS)
+            c += 1
+            
 
-    ax.set_ylabel('Response times (ns)')
-    ax.set_title('Response times per key')
-    ax.set_ylim([0,max(counts)])
+    print("Nothing")
 
-    plt.show()
-
-ser = serial.Serial('COM3', 115200, timeout=1)
-graph = []
-
-for i in range(10):
-    while(True):
-        result = ser.readline()
-        if("10-digit" in result.decode()):
-            break;
-        else:
-            ser.write(ser.write(("Barry").encode()))
-            ser.flush()
-
-    pin = 0
-    print("Waiting for input\n")
-    while(True):
-        result = ser.readline()
-        if(len(result)>0 and result.decode() in "0123456789"):
-            pin = pin+1
-
-        if(pin <= 10):
-            break;
-    
-    start = time.perf_counter_ns()
-
-    while(True):
-        result = ser.readline()
-        if("not match" in result.decode()):
-            break;
-
-    stop = time.perf_counter_ns()
-    result = stop - start
-    print(f"Result {result}")
-    graph.append(result)
-
-average = numpy.mean(graph)
-for i in range(len(graph)):
-    graph[i] = graph[i] - average
-
-print_graph(graph)
+if __name__ =='__main__':
+    hashs = generate_keypass_hash_list(2**16)
+    try_collide(hashs)
