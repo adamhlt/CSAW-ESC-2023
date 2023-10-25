@@ -8,7 +8,7 @@ import itertools
 import hashlib
 from rich.console import Console
 
-KEYS = list("0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
+KEYS = list("0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~")
 
 def print_graph(counts):
     fig, ax = plt.subplots()
