@@ -1,159 +1,109 @@
-import serial
-import itertools
-import matplotlib.pyplot as plt
-import numpy
-import time
-from rich.console import Console
-from rich.progress import Progress
+from scipy.io import wavfile
+import numpy as np
 
-KEYS = list("0123456789abcdef")
 
-def print_graph(counts):
-    fig, ax = plt.subplots()
+FREQUENCY              = 5    # Hz
+HEADER                 = 0xa5 # Message header const
+STATE_WAIT_RISING_EDGE = 0x00
+STATE_FALLING_EDGE     = 0x01
 
-    ax.bar(KEYS, counts, label=KEYS)
 
-    ax.set_ylabel('Response times (ns)')
-    ax.set_title('Response times per key')
-    ax.set_ylim([0,max(counts)])
+def moving_average(a, n=3):
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
 
-    plt.show()
 
-def get_header(serial_port, symbol):
+def sound_to_logicsignal(data):
+    """
+    This function convert a sound signal to a logic signal, each
+    sound peak correspond to a switch of the signal from HIGH to LOW
+    or from LOW TO HIGH.
 
-    console = Console(log_path=False)
-    console.log("[green]Start finding header", log_locals=False)
-    while True:
-        while(True):
-            result = serial_port.readline()
-            if("Error" in result.decode()):
-                break;
-            else:
-                serial_port.write((".").encode("ascii"))
-                serial_port.flush()
+    Parameters
+    ----------
+        data : list[float] of length n
 
-            for combinaison in itertools.product(symbol, repeat=2):
-                combinaison_str = ''.join(combinaison)
-                console.log(f"Symbol tested : {combinaison_str}", log_locals=False);
-                serial_port.write((combinaison_str).encode("ascii"))
-                serial_port.flush()
+    Return
+    ------
+        data : list[int] of length n
 
-                while(True):
-                    result = serial_port.readline()
-                    if("Incorrect Header" in result.decode()):
-                        break;
+    """
+    # Smooth and normalize the sound signal
+    data  = moving_average(abs(data),500)
+    data  = data/max(data)
 
-                    if("Incorrect Length" in result.decode()):
-                        console.log(f"Header found : {combinaison_str}", log_locals=False);
-                        return combinaison_str
+    # Convert the sound signal to a logic signal using 4 states machine
+    state   = STATE_WAIT_RISING_EDGE
+    is_high = False
+    for i in range(len(data)):
+        if state == STATE_WAIT_RISING_EDGE:
+            if data[i] >= 0.3:
+                state   = STATE_FALLING_EDGE
+                is_high = not is_high
 
-def find_length(serial_port, prefix):
-    console = Console(log_path=False)
-    console.log("[green]Start finding length", log_locals=False)
-    while True:
-        while(True):
-            result = serial_port.readline()
-            if("over serial" in result.decode()):
-                break;
-            else:
-                serial_port.write((".").encode("ascii"))
-                serial_port.flush()
+        elif state == STATE_FALLING_EDGE:
+            if data[i] < 0.2:
+                state = STATE_WAIT_RISING_EDGE
 
-            for i in range(100):
-                combinaison_str = prefix + "0"*i
-                console.log(f"Symbol tested : {combinaison_str} ({len(combinaison_str)})", log_locals=False);
-                serial_port.write((combinaison_str).encode("ascii"))
-                serial_port.flush()
+        # Convert the current float sound value to a logic value of 0 or 1
+        data[i] = int(is_high)
 
-                while(True):
-                    result = serial_port.readline()
-                    if(len(result) > 0):
-                        console.log(result.decode())
+    # Return the signal converted to int type
+    return np.array(data, dtype='int')
 
-                    if("Bad CRC" in result.decode()):
-                        return combinaison_str
 
-                    if("over serial" in result.decode()):
-                        break
+def decode_message(data):
+    """
+    Read message from signal return a dict with header, msg length, data crc
 
-def get_CRC(serial_port, symbol):
-    prefix = "a504464c4147"
+    Parameters
+    ----------
+        data : list[int] of length n
 
-    console = Console()
-    console.log("[green]Start finding CRC", log_locals=False)
-    while True:
-        current_symbol = []
+    Return
+    ------
+        msg : dict() ['header','len','data','crc','raw']
+    """
 
-        while(True):
-            result = serial_port.readline()
-            if("over serial" in result.decode()):
-                break;
-            else:
-                serial_port.write(serial_port.write((".").encode("ascii")))
-                serial_port.flush()
-
-        time.sleep(1)
-        serial_port.flush()
-
-        for passcode in itertools.combinations_with_replacement(symbol, 2):
-            passcode
-            while True:
-                result = ser.readline()
-                if(len(result) > 0):
-                    print(result.decode())
-
-                if("over serial" in result.decode()):
-                    break
-
-            console.log(f"Testing symbol : {prefix + passcode}")
-            serial_port.write(serial_port.write((prefix + passcode).encode("ascii")))
-            serial_port.flush()
-            start = time.perf_counter_ns()
-
-            while(True):
-                result = serial_port.readline()
-                if("Incorrect Header" in result.decode()):
-                    console.log(result.decode())
-                    break
-
-                if("Incorrect Length" in result.decode()):
-                    console.log(result.decode())
-                    break
-
-                if("not exceed 10" in result.decode()):
-                    console.log(result.decode())
-                    break
-
-                if("Bad CRC" in result.decode()):
-                    console.log(result.decode())
-                    break
-            
-            stop = time.perf_counter_ns()
-            result = stop - start
-            current_symbol.append(result)
-
-        average = numpy.mean(current_symbol)
-        for i in range(len(current_symbol)):
-            current_symbol[i] = current_symbol[i] - average
-
-        prefix += symbol[current_symbol.index(numpy.max(current_symbol))]
-        console.log(f"Symbol found : {prefix}", log_locals=False);
-        print_graph(current_symbol)
-
-ser = serial.Serial('COM3', 115200, timeout=1)
-#CRC = get_CRC(ser, KEYS)
-#header = get_header(ser, KEYS)
-#length = find_length(ser, "a50464c4147")
-
-while True:
-    while True:
-        result = ser.readline()
-        if(len(result) > 0):
-            print(result.decode())
-
-        if("over serial" in result.decode()):
+    # Skip leading zero
+    for i in range(len(data)):
+        if data[i] == 1:
+            data = data[i::]
             break
 
-    #ser.write(ser.write(("a5" + "f"*16).encode("ascii")))
-    ser.write(("a504464c4147da").encode("ascii"))
-    ser.flush()
+    # Cut the signal into array of bytes
+    data = [''.join(map(str,np.array(data[i:i + 8],dtype='int'))) for i in range(0, len(data), 8)]
+    data = [int(x, 2) for x in data]
+
+    # Create the message dict
+    msg = {}
+    msg['header'] = data[0]
+    msg['len']    = data[1]
+    msg['data']   = ''.join([chr(x) for x in data[2:2+msg['len']]])
+    msg['crc']    = data[2+ msg['len']]
+    msg['raw']    = ''.join([f"{x:02x}" for x in data[:msg['len']+3]])
+
+    return msg
+
+
+if __name__ == '__main__':
+    rate, data = wavfile.read('flag.wav')
+
+    # Retreive only one channel of the wavfile
+    data = data.T[0]
+
+    # Convert the sound to a logic signal
+    data = sound_to_logicsignal(data)
+
+    # Set the sampling frequency to 5Hz
+    sampling_freq = rate // FREQUENCY
+    data = data[::sampling_freq]
+
+    # Decode the message from the logic signal
+    msg = decode_message(data)
+
+    # Check if the header is correct (0xa5)
+    assert msg['header'] == HEADER, "Header is not valid !"
+
+    print(f"Message{{length={msg['len']} data='{msg['data']}' CRC={msg['crc']:#02x} raw='{msg['raw']}'}}")
