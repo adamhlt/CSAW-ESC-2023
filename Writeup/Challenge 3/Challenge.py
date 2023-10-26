@@ -108,7 +108,7 @@ def decode_message(data, debug):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='SPItFire challenge solution script.')
-    parser.add_argument('-f', '--file', required=True, help=".WAV file you want to analyze")
+    parser.add_argument('file', help=".WAV file you want to analyze")
     parser.add_argument('-d', '--debug', action='store_true', required=False, default=False, help="Display plot of the data (need to close it to continue the decode).")
     args = parser.parse_args()
 

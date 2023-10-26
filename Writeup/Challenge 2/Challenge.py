@@ -2,10 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 import argparse
+from rich.console import Console
 
 sample_freq = {1722 : "0", 953 : "1", 1012 : "2", 1063 : "3", 1187 : "4", 1247 : "5", 1305 : "6", 1429 : "7", 1486 : "8", 1540 : "9", 1131 : "A", 1363 : "B", 1606 : "C", 1835 : "D", 1664: "*"}
 
 def get_freq_seq(data, debug):
+
+    console = Console(log_path=False, log_time=False)
+    console.log("[green][+] Analysing audio frequencies...")
 
     found_frequencies = []
 
@@ -94,6 +98,9 @@ def regroup_freq(freqs):
         
 def get_key_from_freqs(freqs):
 
+    console = Console(log_path=False, log_time=False)
+    console.log("[green][+] Retrieving the key from frequencies...")
+    
     key = ""
     for freq in freqs:
         key += sample_freq[freq]
@@ -102,16 +109,21 @@ def get_key_from_freqs(freqs):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description="Extract phone numbers from an audio recording of the dial tones.")
+    parser = argparse.ArgumentParser(description="Bluebox challenge solution script.")
     parser.add_argument("-d", "--debug", help="show graphs to debug", action="store_true")
-    parser.add_argument('file', type=argparse.FileType('r'))
+    parser.add_argument('file', help=".WAV file you want to analyze")
 
     args = parser.parse_args()
 
-    fps, data = wavfile.read(args.file.name)
+    console = Console(log_path=False, log_time=False)
+    console.log("[green][+] Start decoding the audio file...")
+
+    fps, data = wavfile.read(args.file)
     freqs = get_freq_seq(data, args.debug)
 
     final_freqs = regroup_freq(freqs)
 
     key = get_key_from_freqs(final_freqs)
-    print(key)
+
+    console = Console(log_path=False, log_time=False)
+    console.log(f"[green][+] Key found: [cyan][bold]{key}[/bold][/cyan] !")
