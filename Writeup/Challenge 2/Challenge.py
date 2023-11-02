@@ -64,37 +64,43 @@ def get_freq_seq(data, debug):
 
     return found_frequencies
 
+def clean_freqs(freqs):
+
+    if not freqs:
+        return []
+    
+    result = []
+
+    for i in range(len(freqs)):
+        if(freqs[i] != 0):
+            result.append(freqs[i])
+
+    return result
+
 def regroup_freq(freqs):
+
+    counter = 1
 
     if not freqs:
         return []
 
-    resultat = []
-    count = 1
+    result = [freqs[0]]
 
     for i in range(1, len(freqs)):
-        
-        if freqs[i] != freqs[i - 1] and freqs[i] != 0 and freqs[i-1] != 0:
-            
-            if freqs[i-1] == 0:
-                pass
+        if freqs[i] == 0:
+            pass
+        if freqs[i] == freqs[i - 1]:
+            counter += 1
+        if freqs[i] != freqs[i - 1]:
+            if counter >= 7:
+                result.append(freqs[i-1])
+            result.append(freqs[i])
+            counter = 0
 
-            if count >= 8:
-                resultat.append(freqs[i-1])
-                resultat.append(freqs[i-1])
-                count = 1
-            else:
-                resultat.append(freqs[i-1])
-                count = 1
-        else:
-            count += 1
+        if i == len(freqs)-1 and counter >= 7:
+            result.append(freqs[i])
 
-    for i in range(len(freqs) - 1, -1, -1):
-        if freqs[i] != 0:
-            resultat.append(freqs[i])
-            break
-
-    return resultat
+    return result
         
 def get_key_from_freqs(freqs):
 
@@ -121,7 +127,14 @@ if __name__ == '__main__':
     fps, data = wavfile.read(args.file)
     freqs = get_freq_seq(data, args.debug)
 
+    print(freqs)
+
+    freqs = clean_freqs(freqs)
+
     final_freqs = regroup_freq(freqs)
+
+    print(freqs)
+    print(final_freqs)
 
     key = get_key_from_freqs(final_freqs)
 
