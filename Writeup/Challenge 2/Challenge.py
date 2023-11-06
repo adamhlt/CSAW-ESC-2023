@@ -126,16 +126,8 @@ if __name__ == '__main__':
 
     fps, data = wavfile.read(args.file)
     freqs = get_freq_seq(data, args.debug)
-
-    print(freqs)
-
     freqs = clean_freqs(freqs)
-
     final_freqs = regroup_freq(freqs)
-
-    print(freqs)
-    print(final_freqs)
-
     key = get_key_from_freqs(final_freqs)
 
     console = Console(log_path=False, log_time=False)
