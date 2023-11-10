@@ -27,4 +27,4 @@ python3 ./Challenge.py flag.wav
 ![](Image/result.png)
 
 ##### Expected output of the UART console : 
-![](Image/flag.png)
+![](Image/Flag.png)
